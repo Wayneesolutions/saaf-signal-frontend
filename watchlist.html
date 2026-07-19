@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saaf Signal — Watchlist</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23EDEDEE%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Space Grotesk,sans-serif%27 font-size=%2718%27 font-weight=%27700%27 fill=%27%230B0D10%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#0B0D10">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .add-row{display:flex; gap:10px; margin-bottom:32px; flex-wrap:wrap;}
+  .add-row input{
+    flex:1; min-width:200px; background:var(--bg-card); border:1px solid var(--line);
+    color:var(--text); padding:12px 16px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:0.9rem;
+  }
+  .add-row button{
+    background:var(--text); color:var(--bg); border:none; padding:12px 20px;
+    border-radius:8px; font-family:'JetBrains Mono',monospace; font-weight:700;
+    font-size:0.8rem; cursor:pointer; text-transform:uppercase;
+  }
+  .remove-x{
+    position:absolute; top:16px; right:16px; background:transparent; border:none;
+    color:var(--text-dim); cursor:pointer; font-size:1rem; line-height:1;
+  }
+  .stock-card{position:relative;}
+</style>
+</head>
+<body>
+
+<div class="marquee"><span>Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes • Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes •</span></div>
+
+<header class="top">
+  <a href="watchlist.html" class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Saaf Signal</div>
+  </a>
+  <nav class="tabs">
+    <a href="watchlist.html" data-page="watchlist.html">Watchlist</a>
+    <a href="track-record.html" data-page="track-record.html">Track Record</a>
+    <a href="chat.html" data-page="chat.html">Plain Chat</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-eyebrow">YOUR LEDGER, PAGE 01</div>
+  <h1 class="page-title">The Watchlist.</h1>
+  <div class="page-lead" id="watchlist-lead">Tickers we're tracking today. Every confidence number is stamped with the number of past setups it came from — no sample size, no signal.</div>
+
+  <div class="stat-row" id="hero-stats">
+    <div class="stat"><div class="stat-num" id="stat-tracked">—</div><div class="stat-label">Tracked today</div></div>
+    <div class="stat"><div class="stat-num" id="stat-accuracy">—</div><div class="stat-label">Last 12 accuracy</div></div>
+    <div class="stat"><div class="stat-num hit-color" id="stat-high">—</div><div class="stat-label">High conviction</div></div>
+    <div class="stat"><div class="stat-num miss-color" id="stat-spec">—</div><div class="stat-label">Speculative</div></div>
+  </div>
+
+  <div class="tier-legend">
+    <span><span class="tier-dot high"></span> High conviction</span>
+    <span><span class="tier-dot watch"></span> Worth watching</span>
+    <span><span class="tier-dot coin"></span> Coin flip</span>
+    <span><span class="tier-dot spec"></span> Speculative</span>
+  </div>
+
+  <div class="add-row">
+    <input type="text" id="add-ticker" placeholder="Add a ticker, e.g. TCS.NS" class="mono">
+    <button onclick="addToWatchlist()">Add to Watchlist</button>
+  </div>
+
+  <div class="card-grid" id="card-grid">
+    <div class="loading">Loading watchlist…</div>
+  </div>
+</main>
+
+<footer>
+  Educational tool only · No signup · No pricing · No advice · v0.4 beta
+</footer>
+
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+highlightNav();
+
+async function loadDashboard() {
+  const gridEl = document.getElementById('card-grid');
+  let items;
+  try {
+    items = await api('/watchlist');
+  } catch (e) {
+    gridEl.innerHTML = `<div class="error-note">${e.message}</div>`;
+    return;
+  }
+
+  if (items.length === 0) {
+    gridEl.innerHTML = `<div class="empty-note">Nothing on the watchlist yet — add a ticker above.</div>`;
+    document.getElementById('stat-tracked').textContent = '0';
+    document.getElementById('stat-high').textContent = '0';
+    document.getElementById('stat-spec').textContent = '0';
+    return;
+  }
+
+  document.getElementById('stat-tracked').textContent = items.length;
+  gridEl.innerHTML = items.map(() => `<div class="loading">Backtesting…</div>`).join('');
+
+  const signals = await Promise.all(items.map(async w => {
+    try {
+      return { watch: w, signal: await api(`/signal/${encodeURIComponent(w.ticker)}`) };
+    } catch (e) {
+      return { watch: w, error: e.message };
+    }
+  }));
+
+  let highCount = 0, specCount = 0;
+
+  gridEl.innerHTML = signals.map(({watch, signal, error}) => {
+    if (error) {
+      return `<div class="stock-card"><div class="sc-head"><div class="sc-name">${watch.ticker}</div></div><div class="error-note">${error}</div></div>`;
+    }
+    const tier = signal.reliability_tier;
+    const tCls = tierClass(tier);
+    if (tier === 'High conviction') highCount++;
+    if (tier === 'Speculative') specCount++;
+    const changeCls = signal.price_change_pct >= 0 ? 'pos' : 'neg';
+    const changeArrow = signal.price_change_pct >= 0 ? '▲' : '▼';
+
+    return `
+      <div class="stock-card" style="position:relative;">
+        <button class="remove-x" onclick="event.preventDefault(); removeFromWatchlist('${watch.ticker}')" title="Remove">✕</button>
+        <div class="sc-head">
+          <div>
+            <div class="sc-name">${watch.display_name || watch.ticker.replace('.NS','').replace('.BO','')}</div>
+            <div class="sc-ticker">${watch.ticker.replace('.NS','').replace('.BO','')}</div>
+          </div>
+          <div class="tier-badge ${tCls}">${tier}</div>
+        </div>
+        <div class="sc-price">₹${signal.price_at_prediction.toFixed(2)}</div>
+        <div class="sc-change ${changeCls}">${changeArrow} ${Math.abs(signal.price_change_pct)}%</div>
+        <div class="sc-conf-row">
+          <div class="sc-conf-block"><div class="n">${signal.technical_confidence}%</div><div class="l">Confidence</div></div>
+          <div class="sc-conf-block"><div class="n">n = ${signal.n_samples}</div><div class="l">Sample</div></div>
+        </div>
+        <div class="sc-footnote">Based on ${signal.n_samples} similar past setups. <a href="track-record.html?ticker=${encodeURIComponent(watch.ticker)}" style="color:var(--watch);">See the receipts →</a></div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('stat-high').textContent = highCount;
+  document.getElementById('stat-spec').textContent = specCount;
+
+  try {
+    const tr = await api('/track-record');
+    document.getElementById('stat-accuracy').textContent = tr.accuracy_pct != null ? tr.accuracy_pct + '%' : '—';
+  } catch (e) {
+    document.getElementById('stat-accuracy').textContent = '—';
+  }
+}
+
+async function addToWatchlist() {
+  const ticker = document.getElementById('add-ticker').value.trim();
+  if (!ticker) return;
+  try {
+    await api(`/watchlist/${encodeURIComponent(ticker)}`, {method:'POST'});
+    document.getElementById('add-ticker').value = '';
+    loadDashboard();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeFromWatchlist(ticker) {
+  try {
+    await api(`/watchlist/${encodeURIComponent(ticker)}`, {method:'DELETE'});
+    loadDashboard();
+  } catch (e) { alert(e.message); }
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saaf Signal — Plain Chat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23EDEDEE%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Space Grotesk,sans-serif%27 font-size=%2718%27 font-weight=%27700%27 fill=%27%230B0D10%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#0B0D10">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<div class="marquee"><span>Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes • Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes •</span></div>
+
+<header class="top">
+  <a href="watchlist.html" class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Saaf Signal</div>
+  </a>
+  <nav class="tabs">
+    <a href="watchlist.html" data-page="watchlist.html">Watchlist</a>
+    <a href="track-record.html" data-page="track-record.html">Track Record</a>
+    <a href="chat.html" data-page="chat.html">Plain Chat</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-eyebrow">FOR THE GROUP CHAT, NOT THE MARKET</div>
+  <h1 class="page-title">Plain Chat.</h1>
+  <div class="page-lead">Ask like you'd ask a friend. Same underlying number, translated into a sentence. The "why" is always one tap away.</div>
+
+  <div class="chat-suggestions">
+    <button class="chat-suggestion" onclick="askQuick('Should I care about TCS.NS?')">Should I care about TCS?</button>
+    <button class="chat-suggestion" onclick="askQuick('What is the read on INFY.NS?')">What's the read on INFY?</button>
+    <button class="chat-suggestion" onclick="askQuick('Is HDFCBANK.NS worth watching?')">Is HDFCBANK worth watching?</button>
+    <button class="chat-suggestion" onclick="askQuick('Should I care about RELIANCE.NS right now?')">Should I care about RELIANCE right now?</button>
+  </div>
+
+  <div class="chat-window" id="chat-window">
+    <div class="empty-note">Ask about any ticker — try "Should I care about RELIANCE.NS?"</div>
+  </div>
+
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" placeholder="Ask about a stock, e.g. Should I care about TCS.NS?" onkeydown="if(event.key==='Enter') sendMessage();">
+    <button onclick="sendMessage()">Ask →</button>
+  </div>
+  <div class="chat-footnote">Not financial advice · numbers are counts, not certainties</div>
+</main>
+
+<footer>
+  Educational tool only · No signup · No pricing · No advice · v0.4 beta
+</footer>
+
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+highlightNav();
+
+const KNOWN_TICKERS = ["RELIANCE","TCS","INFY","ZOMATO","HDFCBANK","TATASTEEL","ITC","WIPRO","ICICIBANK",
+  "HINDUNILVR","SBIN","BHARTIARTL","KOTAKBANK","LT","AXISBANK","BAJFINANCE","MARUTI","SUNPHARMA",
+  "TITAN","ONGC","NTPC","ADANIENT","TATAMOTORS","POWERGRID","ULTRACEMCO","ASIANPAINT"];
+
+let msgCount = 0;
+
+function extractTicker(text) {
+  const upper = text.toUpperCase();
+  // Direct .NS / .BO mention
+  const suffixMatch = upper.match(/[A-Z]+\.(NS|BO)/);
+  if (suffixMatch) return suffixMatch[0];
+  // Known ticker name mentioned plainly
+  for (const t of KNOWN_TICKERS) {
+    if (upper.includes(t)) return t + ".NS";
+  }
+  // Fallback: any all-caps word 2-10 chars that isn't a common word
+  const words = upper.match(/\b[A-Z]{2,10}\b/g) || [];
+  const stopwords = ["SHOULD","CARE","ABOUT","WHAT","THE","READ","ON","IS","WORTH","WATCHING","RIGHT","NOW","I"];
+  const candidate = words.find(w => !stopwords.includes(w));
+  return candidate ? candidate + ".NS" : null;
+}
+
+function appendUserMessage(text) {
+  const win = document.getElementById('chat-window');
+  const emptyNote = win.querySelector('.empty-note');
+  if (emptyNote) emptyNote.remove();
+  const div = document.createElement('div');
+  div.className = 'chat-msg user';
+  div.innerHTML = `<div class="chat-avatar">You</div><div class="chat-bubble">${text}</div>`;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function appendLoading() {
+  const win = document.getElementById('chat-window');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.id = 'loading-msg';
+  div.innerHTML = `<div class="chat-avatar">S</div><div class="chat-bubble"><span class="loading">Counting historical setups…</span></div>`;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function removeLoading() {
+  const el = document.getElementById('loading-msg');
+  if (el) el.remove();
+}
+
+function appendAssistantMessage(signal) {
+  msgCount++;
+  const id = 'why-' + msgCount;
+  const win = document.getElementById('chat-window');
+  const tierNote = signal.n_samples < 30
+    ? 'Basically a coin flip — small sample'
+    : (signal.confidence >= 65 ? 'Fairly likely, not a lock' : (signal.confidence >= 55 ? 'Leaning, but not certain' : 'Basically a coin flip'));
+
+  const upMoves = Math.round((signal.confidence / 100) * signal.n_samples);
+
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `
+    <div class="chat-avatar">S</div>
+    <div>
+      <div class="chat-source">Saaf · plain-language view</div>
+      <div class="chat-bubble">
+        ${signal.answer}
+        <div class="chat-meta">
+          <span class="conf">${signal.confidence}% · n=${signal.n_samples}</span>
+          <span>In plain words · ${tierNote}</span>
+        </div>
+        <div class="chat-why" onclick="document.getElementById('${id}').classList.toggle('open')">Why this number? ↓</div>
+        <div class="chat-why-body" id="${id}">
+          We searched this stock's available price history for setups matching its current chart — RSI, MACD, and trend versus the 20 and 50-day averages.<br><br>
+          Found ${signal.n_samples} matches. Of those, ${upMoves} moved the way we're forecasting within 5 trading days. That's your ${signal.confidence}%.
+          <div class="final">No neural network. Just a count.</div>
+        </div>
+      </div>
+    </div>
+  `;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+function appendErrorMessage(msg) {
+  const win = document.getElementById('chat-window');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<div class="chat-avatar">S</div><div class="chat-bubble"><span class="error-note">${msg}</span></div>`;
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  appendUserMessage(text);
+
+  const ticker = extractTicker(text);
+  if (!ticker) {
+    appendErrorMessage("Not sure which stock you mean — try naming a ticker, like 'Should I care about TCS.NS?'");
+    return;
+  }
+
+  appendLoading();
+  try {
+    const signal = await api(`/signal/${encodeURIComponent(ticker)}/explain`);
+    removeLoading();
+    appendAssistantMessage(signal);
+  } catch (e) {
+    removeLoading();
+    appendErrorMessage(e.message);
+  }
+}
+
+function askQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+</script>
+
+</body>
+</html>

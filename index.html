@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saaf Signal — Radically honest AI stock forecasts</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23EDEDEE%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Space Grotesk,sans-serif%27 font-size=%2718%27 font-weight=%27700%27 fill=%27%230B0D10%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#0B0D10">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0D10; --bg-raised:#111418; --bg-card:#15181D;
+    --line:#252A31; --text:#EDEDEE; --text-dim:#8B93A1;
+    --hit:#3DDC84; --miss:#FF5C5C; --neutral:#E8B84B;
+    --accent:#EDEDEE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+
+  /* marquee disclaimer */
+  .marquee{
+    background:var(--bg-raised); border-bottom:1px solid var(--line);
+    overflow:hidden; white-space:nowrap; padding:8px 0;
+  }
+  .marquee span{
+    display:inline-block; padding-left:100%;
+    animation:scroll 32s linear infinite;
+    font-family:'JetBrains Mono',monospace; font-size:0.72rem;
+    color:var(--text-dim); letter-spacing:0.02em;
+  }
+  @keyframes scroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-100%);} }
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 32px; border-bottom:1px solid var(--line);
+    max-width:1180px; margin:0 auto;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px; background:var(--text);
+    color:var(--bg); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:1rem;
+  }
+  .brand-name{font-weight:700; font-size:1.05rem;}
+  .badges{display:flex; gap:8px; font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--text-dim);}
+  .badge{border:1px solid var(--line); padding:3px 9px; border-radius:20px;}
+
+  main{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  /* hero */
+  .hero{padding:64px 0 40px; text-align:center;}
+  .eyebrow{font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--text-dim); letter-spacing:0.05em; margin-bottom:18px;}
+  .hero h1{font-size:3.4rem; margin:0 0 20px; letter-spacing:-0.02em; font-weight:700;}
+  .hero p{max-width:640px; margin:0 auto; color:var(--text-dim); font-size:1.05rem; line-height:1.6;}
+
+  .stat-row{
+    display:flex; justify-content:center; gap:56px; margin-top:48px; flex-wrap:wrap;
+  }
+  .stat{text-align:center;}
+  .stat-num{font-family:'JetBrains Mono',monospace; font-size:2.6rem; font-weight:700;}
+  .stat-num.hit-color{color:var(--hit);}
+  .stat-num.miss-color{color:var(--miss);}
+  .stat-label{font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-top:6px;}
+
+  /* section header pattern */
+  .section{padding:64px 0; border-top:1px solid var(--line);}
+  .section-tag{font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--text-dim); margin-bottom:10px;}
+  .section h2{font-size:2rem; margin:0 0 12px; font-weight:700; letter-spacing:-0.01em;}
+  .section-lead{color:var(--text-dim); max-width:640px; line-height:1.6; margin-bottom:36px;}
+
+  /* truth board */
+  .accuracy-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:16px 22px; margin-bottom:20px; flex-wrap:wrap; gap:10px;
+  }
+  .accuracy-strip .big{font-family:'JetBrains Mono',monospace; font-size:1.5rem; font-weight:700;}
+  .call-list{display:flex; flex-direction:column; gap:1px; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .call-row{
+    display:grid; grid-template-columns: 1.4fr 0.9fr 0.9fr 1fr 1fr; align-items:center;
+    padding:14px 18px; background:var(--bg-card); gap:10px;
+  }
+  .call-row:nth-child(even){background:var(--bg-raised);}
+  .call-ticker{font-weight:700;}
+  .call-tag{
+    font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:700;
+    padding:3px 8px; border-radius:5px; width:fit-content; letter-spacing:0.04em;
+  }
+  .call-tag.hit{background:rgba(61,220,132,0.14); color:var(--hit);}
+  .call-tag.miss{background:rgba(255,92,92,0.14); color:var(--miss);}
+  .call-tag.pending{background:rgba(232,184,75,0.14); color:var(--neutral);}
+  .call-move{font-family:'JetBrains Mono',monospace; font-size:0.9rem;}
+  .call-move.pos{color:var(--hit);} .call-move.neg{color:var(--miss);}
+  .call-date{font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--text-dim);}
+  .call-dir{font-size:0.78rem; color:var(--text-dim); text-align:right;}
+
+  /* how it works */
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:24px;}
+  .step{background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:22px;}
+  .step-num{font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-size:0.75rem; margin-bottom:14px;}
+  .step h3{margin:0 0 10px; font-size:1.05rem;}
+  .step p{color:var(--text-dim); font-size:0.9rem; line-height:1.55; margin:0;}
+  .quote-block{
+    margin-top:28px; border-left:2px solid var(--line); padding:14px 20px;
+    color:var(--text-dim); font-style:italic; font-size:0.92rem; line-height:1.6;
+  }
+
+  /* signal checker (two views) */
+  .checker-input{display:flex; gap:10px; margin-bottom:28px; flex-wrap:wrap;}
+  .checker-input input{
+    flex:1; min-width:220px; background:var(--bg-card); border:1px solid var(--line);
+    color:var(--text); padding:13px 16px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:0.95rem;
+  }
+  .checker-input button{
+    background:var(--text); color:var(--bg); border:none; padding:13px 22px;
+    border-radius:8px; font-family:'JetBrains Mono',monospace; font-weight:700;
+    font-size:0.85rem; cursor:pointer; text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .checker-input button:hover{opacity:0.85;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:800px){ .two-col{grid-template-columns:1fr;} .steps{grid-template-columns:1fr;} .call-row{grid-template-columns:1fr 1fr; row-gap:6px;} }
+
+  .view-card{background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:24px;}
+  .view-label{font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px;}
+  .view-headline{font-size:1.15rem; font-weight:700; margin-bottom:12px; line-height:1.4;}
+  .view-body{color:var(--text-dim); font-size:0.92rem; line-height:1.6; margin-bottom:14px;}
+  .view-footnote{font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--text-dim); border-top:1px solid var(--line); padding-top:12px;}
+  .tech-stats{display:flex; gap:22px; margin:16px 0;}
+  .tech-stat{}
+  .tech-stat .n{font-family:'JetBrains Mono',monospace; font-size:1.4rem; font-weight:700;}
+  .tech-stat .l{font-size:0.68rem; color:var(--text-dim); text-transform:uppercase;}
+  .range-bar{height:6px; background:var(--bg-raised); border-radius:3px; overflow:hidden; margin:14px 0;}
+  .range-fill{height:100%; background:var(--text);}
+
+  .empty-note{color:var(--text-dim); font-size:0.9rem; font-style:italic;}
+  .loading{color:var(--text-dim); font-size:0.9rem;}
+  .error-note{color:var(--miss); font-size:0.9rem;}
+
+  /* watchlist */
+  .watchlist-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 0; border-bottom:1px solid var(--line); font-size:0.92rem;
+  }
+  .watchlist-row:last-child{border-bottom:none;}
+  .ghost-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    padding:6px 12px; border-radius:6px; font-family:'JetBrains Mono',monospace;
+    font-size:0.72rem; cursor:pointer;
+  }
+  .ghost-btn:hover{border-color:var(--text-dim); color:var(--text);}
+
+  footer{
+    border-top:1px solid var(--line); padding:36px 32px; text-align:center;
+    color:var(--text-dim); font-size:0.8rem; margin-top:20px;
+  }
+  footer .note-block{max-width:600px; margin:0 auto 20px; line-height:1.6;}
+</style>
+</head>
+<body>
+
+<div class="marquee"><span>Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes • Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes •</span></div>
+
+<header class="top">
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Saaf Signal</div>
+  </div>
+  <div class="badges">
+    <span class="badge">v0.4 — Beta</span>
+    <span class="badge">Invite Only</span>
+    <a href="watchlist.html" class="badge" style="text-decoration:none; color:var(--text); border-color:var(--text);">Open Dashboard →</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">FOR THE GROUP CHAT, NOT THE MARKET</div>
+    <h1>Saaf Signal.</h1>
+    <p>Radically honest AI stock forecasts for a small group of friends in India. We show the Ls as clearly as the Ws — because a confidence score you can't verify is just a number someone made up.</p>
+
+    <div class="stat-row" id="hero-stats">
+      <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total calls tracked</div></div>
+      <div class="stat"><div class="stat-num hit-color" id="stat-correct">—</div><div class="stat-label">Correct</div></div>
+      <div class="stat"><div class="stat-num miss-color" id="stat-wrong">—</div><div class="stat-label">Wrong</div></div>
+    </div>
+  </section>
+
+  <!-- §01 Truth Board -->
+  <section class="section">
+    <div class="section-tag">§01 — THE TRUTH BOARD</div>
+    <h2>Every call. Hits and misses.</h2>
+    <div class="section-lead">We don't delete the losers. If we started hiding misses, the confidence score would mean nothing.</div>
+
+    <div class="accuracy-strip">
+      <div>
+        <div class="big" id="live-accuracy">—</div>
+        <div class="stat-label" style="text-align:left;">Live Accuracy</div>
+      </div>
+      <div class="stat-label" id="accuracy-sub">loading…</div>
+    </div>
+
+    <div class="call-list" id="call-list">
+      <div class="loading" style="padding:20px;">Loading the board…</div>
+    </div>
+  </section>
+
+  <!-- §02 How the number is made -->
+  <section class="section">
+    <div class="section-tag">§02 — HOW THE NUMBER IS MADE</div>
+    <h2>A confidence score is just a count of history repeating itself.</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">STEP 01</div>
+        <h3>Find similar setups</h3>
+        <p>Take today's chart — RSI, MACD, trend versus the 20 and 50-day averages. Search this stock's own history for moments that looked the same.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">STEP 02</div>
+        <h3>Count what happened next</h3>
+        <p>For every matching setup, look at the next 5 trading days. Did the stock move the way we're forecasting? Yes or no — counted, not guessed.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">STEP 03</div>
+        <h3>That count is the score</h3>
+        <p>If 68 out of 100 similar setups played out that way, we say 68%. If it's 51 out of 100, we say 51% and flag it as close to a coin flip.</p>
+      </div>
+    </div>
+    <div class="quote-block">No proprietary secret sauce. No neural network hallucinating price targets. Just backtested counts, shown to you exactly as they come out of the query.</div>
+  </section>
+
+  <!-- §03 Two views -->
+  <section class="section">
+    <div class="section-tag">§03 — TWO WAYS TO READ THE SAME SIGNAL</div>
+    <h2>Charts for the nerds. Sentences for everyone else.</h2>
+    <div class="section-lead">Same underlying signal. Type any ticker — try RELIANCE.NS, TCS.NS, or AAPL.</div>
+
+    <div class="checker-input">
+      <input type="text" id="ticker-input" placeholder="e.g. RELIANCE.NS" value="RELIANCE.NS" class="mono">
+      <button onclick="runChecker()">Check Signal</button>
+    </div>
+
+    <div class="two-col" id="checker-result">
+      <div class="view-card"><div class="empty-note">Enter a ticker above to see both views.</div></div>
+      <div class="view-card"><div class="empty-note">Technical view will appear here.</div></div>
+    </div>
+  </section>
+
+  <!-- Watchlist (functional, not in the original marketing page) -->
+  <section class="section">
+    <div class="section-tag">§04 — WATCHLIST</div>
+    <h2>Stocks the group is actually tracking.</h2>
+    <div class="checker-input">
+      <input type="text" id="watchlist-input" placeholder="Add a ticker, e.g. TCS.NS" class="mono">
+      <button onclick="addToWatchlist()">Add</button>
+    </div>
+    <div id="watchlist-items"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="note-block">
+    We built this for our friends because most finance content online is trying to sell you something. Saaf Signal is not. It's an AI making probabilistic guesses based on historical patterns — sometimes right, often wrong. Nothing here is a recommendation to buy or sell anything. We are not SEBI-registered advisors. Keep your money safe, and don't be silly with it.
+  </div>
+  <div class="mono" style="font-size:0.72rem;">Educational tool only · No signup · No pricing · No advice</div>
+  <div class="mono" style="font-size:0.7rem; margin-top:10px;">© 2026 Saaf Signal · Built for the group.</div>
+</footer>
+
+<script src="config.js"></script>
+<script>
+const API = (window.SAAF_CONFIG && window.SAAF_CONFIG.API_BASE) || "http://localhost:8000";
+
+async function api(path, opts={}) {
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({detail: res.statusText}));
+    throw new Error(err.detail || "Request failed");
+  }
+  return res.json();
+}
+
+// ---- Hero stats + Truth Board (live from /track-record + /predictions) ----
+async function loadTruthBoard() {
+  try {
+    const tr = await api('/track-record');
+    document.getElementById('stat-total').textContent = tr.total_checked ?? 0;
+    document.getElementById('stat-correct').textContent = tr.correct ?? 0;
+    document.getElementById('stat-wrong').textContent = tr.incorrect ?? 0;
+    document.getElementById('live-accuracy').textContent = tr.accuracy_pct != null ? tr.accuracy_pct + '%' : '—';
+    document.getElementById('accuracy-sub').textContent = tr.total_checked
+      ? `last ${tr.total_checked} calls`
+      : 'no calls resolved yet';
+  } catch (e) {
+    document.getElementById('accuracy-sub').textContent = 'could not load';
+  }
+
+  const listEl = document.getElementById('call-list');
+  try {
+    const preds = await api('/predictions?limit=20');
+    if (preds.length === 0) {
+      listEl.innerHTML = `<div class="empty-note" style="padding:20px;">No calls logged yet. Check a signal below to make the first one.</div>`;
+      return;
+    }
+    listEl.innerHTML = preds.map(p => {
+      let tag, tagClass, moveText, moveClass;
+      if (!p.outcome_checked) {
+        tag = 'PENDING'; tagClass = 'pending'; moveText = '—'; moveClass = '';
+      } else {
+        tag = p.direction_correct ? 'HIT' : 'MISS';
+        tagClass = p.direction_correct ? 'hit' : 'miss';
+        const pct = p.price_error_pct;
+        moveText = (pct >= 0 ? '+' : '') + pct + '%';
+        moveClass = pct >= 0 ? 'pos' : 'neg';
+      }
+      const dateStr = new Date(p.created_at).toLocaleDateString('en-IN', {month:'short', day:'2-digit'});
+      return `
+        <div class="call-row">
+          <div class="call-ticker">${p.ticker.replace('.NS','').replace('.BO','')}</div>
+          <div class="call-tag ${tagClass}">${tag}</div>
+          <div class="call-move mono ${moveClass}">${moveText}</div>
+          <div class="call-date mono">${dateStr}</div>
+          <div class="call-dir">${p.technical_direction}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = `<div class="error-note" style="padding:20px;">${e.message}</div>`;
+  }
+}
+
+// ---- Signal checker: two views side by side ----
+async function runChecker() {
+  const ticker = document.getElementById('ticker-input').value.trim();
+  const resultEl = document.getElementById('checker-result');
+  if (!ticker) return;
+  resultEl.innerHTML = `
+    <div class="view-card"><div class="loading">Fetching data and backtesting…</div></div>
+    <div class="view-card"><div class="loading">Fetching data and backtesting…</div></div>
+  `;
+  try {
+    const [plain, tech] = await Promise.all([
+      api(`/predict/${encodeURIComponent(ticker)}/explain`, {method:'POST'}),
+      api(`/predict/${encodeURIComponent(ticker)}`, {method:'POST'})
+    ]);
+
+    const rangePct = tech.predicted_high > tech.predicted_low
+      ? Math.round(((tech.price_at_prediction - tech.predicted_low) / (tech.predicted_high - tech.predicted_low)) * 100)
+      : 50;
+
+    resultEl.innerHTML = `
+      <div class="view-card">
+        <div class="view-label">Plain-Language View</div>
+        <div class="view-headline">${plain.ticker}</div>
+        <div class="view-body">${plain.answer}</div>
+        <div class="view-footnote">Real talk, no jargon.</div>
+      </div>
+      <div class="view-card">
+        <div class="view-label">[TECHNICAL_VIEW] ${tech.ticker} · ${tech.horizon_days}D</div>
+        <div class="view-headline">${tech.technical_direction.toUpperCase()} · ₹${tech.price_at_prediction}</div>
+        <div class="tech-stats">
+          <div class="tech-stat"><div class="n">${tech.n_samples ?? '?'}</div><div class="l">Setup match</div></div>
+          <div class="tech-stat"><div class="n">${tech.technical_confidence}%</div><div class="l">Confidence</div></div>
+          <div class="tech-stat"><div class="n">₹${tech.predicted_low}–${tech.predicted_high}</div><div class="l">Range</div></div>
+        </div>
+        <div class="range-bar"><div class="range-fill" style="width:${rangePct}%"></div></div>
+        <div class="view-body">${tech.technical_basis}</div>
+        <div class="view-footnote">Same signal you saw on the left. Just with the receipts.</div>
+      </div>
+    `;
+    loadTruthBoard();
+  } catch (e) {
+    resultEl.innerHTML = `<div class="view-card"><div class="error-note">${e.message}</div></div><div class="view-card"></div>`;
+  }
+}
+
+// ---- Watchlist ----
+async function loadWatchlist() {
+  const el = document.getElementById('watchlist-items');
+  try {
+    const items = await api('/watchlist');
+    if (items.length === 0) {
+      el.innerHTML = `<div class="empty-note" style="padding:14px 0;">Nothing tracked yet.</div>`;
+      return;
+    }
+    el.innerHTML = items.map(w => `
+      <div class="watchlist-row">
+        <span class="mono">${w.ticker}${w.display_name ? ' — ' + w.display_name : ''}</span>
+        <button class="ghost-btn" onclick="removeFromWatchlist('${w.ticker}')">Remove</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="error-note">${e.message}</div>`;
+  }
+}
+
+async function addToWatchlist() {
+  const ticker = document.getElementById('watchlist-input').value.trim();
+  if (!ticker) return;
+  try {
+    await api(`/watchlist/${encodeURIComponent(ticker)}`, {method:'POST'});
+    document.getElementById('watchlist-input').value = '';
+    loadWatchlist();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeFromWatchlist(ticker) {
+  try {
+    await api(`/watchlist/${encodeURIComponent(ticker)}`, {method:'DELETE'});
+    loadWatchlist();
+  } catch (e) { alert(e.message); }
+}
+
+loadTruthBoard();
+loadWatchlist();
+</script>
+
+</body>
+</html>

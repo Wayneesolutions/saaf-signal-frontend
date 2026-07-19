@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saaf Signal — Track Record</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23EDEDEE%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Space Grotesk,sans-serif%27 font-size=%2718%27 font-weight=%27700%27 fill=%27%230B0D10%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#0B0D10">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<div class="marquee"><span>Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes • Not financial advice • For educational use only • We are not SEBI registered • Trade at your own risk • Purely math &amp; vibes •</span></div>
+
+<header class="top">
+  <a href="watchlist.html" class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-name">Saaf Signal</div>
+  </a>
+  <nav class="tabs">
+    <a href="watchlist.html" data-page="watchlist.html">Watchlist</a>
+    <a href="track-record.html" data-page="track-record.html">Track Record</a>
+    <a href="chat.html" data-page="chat.html">Plain Chat</a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-eyebrow">THE TRUST ANCHOR</div>
+  <h1 class="page-title">Track Record.</h1>
+  <div class="page-lead">Every prediction we've published. Wins and losses shown the same size, the same weight. If we hid the misses, the score would mean nothing.</div>
+
+  <div class="stat-row" id="hero-stats">
+    <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total calls</div></div>
+    <div class="stat"><div class="stat-num hit-color" id="stat-hits">—</div><div class="stat-label">Hits</div></div>
+    <div class="stat"><div class="stat-num miss-color" id="stat-misses">—</div><div class="stat-label">Misses</div></div>
+    <div class="stat"><div class="stat-num" id="stat-acc">—</div><div class="stat-label">Accuracy</div></div>
+    <div class="stat"><div class="stat-num" id="stat-err">—</div><div class="stat-label">Avg error</div></div>
+  </div>
+
+  <div class="filter-row" id="filter-row">
+    <button class="filter-chip active" data-ticker="" onclick="setFilter('')">ALL</button>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="ledger-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Ticker</th><th>Direction</th><th>Predicted range</th>
+          <th>Actual</th><th>Outcome</th>
+        </tr>
+      </thead>
+      <tbody id="ledger-body">
+        <tr><td colspan="6" class="loading">Loading the ledger…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="append-only-note">Ledger is append-only. We do not edit or delete past calls, ever.</div>
+</main>
+
+<footer>
+  Educational tool only · No signup · No pricing · No advice · v0.4 beta
+</footer>
+
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+highlightNav();
+
+let currentFilter = "";
+let allPredictions = [];
+
+function getUrlTicker() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('ticker') || "";
+}
+
+async function loadTrackRecord(ticker) {
+  const suffix = ticker ? `?ticker=${encodeURIComponent(ticker)}` : "";
+  try {
+    const tr = await api('/track-record' + suffix);
+    document.getElementById('stat-total').textContent = tr.total_checked ?? 0;
+    document.getElementById('stat-hits').textContent = tr.correct ?? 0;
+    document.getElementById('stat-misses').textContent = tr.incorrect ?? 0;
+    document.getElementById('stat-acc').textContent = tr.accuracy_pct != null ? tr.accuracy_pct + '%' : '—';
+    document.getElementById('stat-err').textContent = tr.avg_price_error_pct != null ? '±' + tr.avg_price_error_pct + '%' : '—';
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderLedger() {
+  const body = document.getElementById('ledger-body');
+  const filtered = currentFilter ? allPredictions.filter(p => p.ticker === currentFilter) : allPredictions;
+
+  if (filtered.length === 0) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty-note" style="padding:20px 0;">No calls logged yet for this filter.</div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = filtered.map(p => {
+    const dateStr = new Date(p.created_at).toLocaleDateString('en-IN', {month:'short', day:'2-digit'});
+    let outcomeHtml;
+    if (!p.outcome_checked) {
+      outcomeHtml = `<span class="outcome-pill pending">pending</span>`;
+    } else {
+      const pillClass = p.direction_correct ? 'hit' : 'miss';
+      const pillText = p.direction_correct ? 'hit' : 'miss';
+      outcomeHtml = `<span class="mono" style="color:var(--text-dim); margin-right:6px;">${p.technical_confidence}% · n=${p.n_samples ?? '?'}</span><span class="outcome-pill ${pillClass}">${pillText}</span>`;
+    }
+    const actualText = p.outcome_checked && p.actual_price != null
+      ? `₹${p.actual_price.toFixed(2)} (${p.price_error_pct >= 0 ? '+' : ''}${p.price_error_pct}%)`
+      : '—';
+
+    return `
+      <tr>
+        <td class="mono">${dateStr}</td>
+        <td><strong>${p.ticker.replace('.NS','').replace('.BO','')}</strong></td>
+        <td>${p.technical_direction}</td>
+        <td class="mono">₹${p.predicted_low}–₹${p.predicted_high}</td>
+        <td class="mono">${actualText}</td>
+        <td>${outcomeHtml}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function setFilter(ticker) {
+  currentFilter = ticker;
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.getAttribute('data-ticker') === ticker);
+  });
+  loadTrackRecord(ticker);
+  renderLedger();
+}
+
+async function init() {
+  try {
+    allPredictions = await api('/predictions?limit=200');
+  } catch (e) {
+    document.getElementById('ledger-body').innerHTML = `<tr><td colspan="6"><div class="error-note">${e.message}</div></td></tr>`;
+    return;
+  }
+
+  const tickers = [...new Set(allPredictions.map(p => p.ticker))];
+  const filterRow = document.getElementById('filter-row');
+  filterRow.innerHTML = `<button class="filter-chip active" data-ticker="" onclick="setFilter('')">ALL</button>` +
+    tickers.map(t => `<button class="filter-chip" data-ticker="${t}" onclick="setFilter('${t}')">${t.replace('.NS','').replace('.BO','')}</button>`).join('');
+
+  const urlTicker = getUrlTicker();
+  if (urlTicker && tickers.includes(urlTicker)) {
+    setFilter(urlTicker);
+  } else {
+    loadTrackRecord('');
+    renderLedger();
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>
