@@ -2,8 +2,7 @@
 // ---------------------------------------------------------------
 window.SAAF_CONFIG = {
   // Local development (running backend with `uvicorn app.main:app --reload`):
-API_BASE: "http://3.111.120.126:8000",
-
+API_BASE: "https://saaf-signal-backend.onrender.com",
   // Once deployed, replace the line above with your live backend URL, e.g.:
   // API_BASE: "https://saaf-signal-backend.onrender.com",
 };
