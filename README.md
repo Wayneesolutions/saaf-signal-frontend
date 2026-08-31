@@ -26,6 +26,16 @@ window.SAAF_CONFIG = {
 Everything else reads from this automatically — you don't need to touch any
 other file.
 
+### Optional: link to a Saaf Trade investor account
+
+If your readers also have an execution/risk-engine account on Saaf Trade
+(the separate `waynetrade-backend`/`waynetrade-frontend` project), set
+`SAAF_TRADE_INVESTOR_URL` in `config.js` to their investor view (e.g.
+`https://waynetrade-frontend.vercel.app/#investor`) and a "Your Saaf Trade
+account ↗" link appears in the nav on every page, opening in a new tab.
+Leave it blank and nothing changes — this is a plain external link, not an
+integration; the two products stay separate deployments either way.
+
 ## Run locally
 
 Just open `index.html` in a browser, or serve the folder so relative links
