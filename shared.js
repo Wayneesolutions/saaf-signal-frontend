@@ -24,3 +24,18 @@ function highlightNav() {
     if (a.getAttribute("data-page") === path) a.classList.add("active");
   });
 }
+
+// Optional cross-link to a Saaf Trade investor view (see config.js) — a
+// plain external link, not an integration. No-op if unconfigured.
+function renderInvestorLink() {
+  const url = window.SAAF_CONFIG && window.SAAF_CONFIG.SAAF_TRADE_INVESTOR_URL;
+  if (!url) return;
+  const nav = document.querySelector("nav.tabs");
+  if (!nav) return;
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noreferrer";
+  a.textContent = "Your Saaf Trade account ↗";
+  nav.appendChild(a);
+}
